@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  email     String   @unique
+  role      UserRole @default(PEMINJAM)
+  nama      String
+  is_active Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  loans        Loan[]
+  approved_loans Loan[] @relation("ApprovedLoans")
+  returns_made Return[] @relation("ReturnsMade")
+  
+  @@map("users")
+}
+
+model Category {
+  id          String     @id @default(uuid())
+  nama        String     @unique
+  deskripsi   String?
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+  equipments  Equipment[]
+  
+  @@map("categories")
+}
+
+model Equipment {
+  id          String    @id @default(uuid())
+  nama        String
+  kode_alat   String?   @unique
+  kategori_id String
+  stok        Int       @default(0)
+  deskripsi   String?
+  image       String?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  
+  kategori    Category  @relation(fields: [kategori_id], references: [id])
+  loans       Loan[]
+  
+  @@map("equipments")
+}
+
+model Loan {
+  id               String     @id @default(uuid())
+  user_id          String
+  equipment_id     String
+  jumlah           Int        @default(1)
+  tanggal_pinjam   DateTime   @default(now())
+  tanggal_kembali  DateTime?
+  tanggal_deadline DateTime
+  status           LoanStatus @default(PENDING)
+  approved_by      String?
+  approved_at      DateTime?
+  created_at       DateTime   @default(now())
+  updated_at       DateTime   @updatedAt
+  
+  user       User      @relation(fields: [user_id], references: [id])
+  equipment  Equipment @relation(fields: [equipment_id], references: [id])
+  approver   User?     @relation("ApprovedLoans", fields: [approved_by], references: [id])
+  return     Return?
+  
+  @@map("loans")
+}
+
+model Return {
+  id              String   @id @default(uuid())
+  loan_id         String   @unique
+  returned_by     String
+  tanggal_kembali DateTime @default(now())
+  kondisi_alat    String?
+  catatan         String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  
+  loan        Loan  @relation(fields: [loan_id], references: [id])
+  returner    User  @relation("ReturnsMade", fields: [returned_by], references: [id])
+  
+  @@map("returns")
+}
+
+enum UserRole {
+  ADMIN
+  PETUGAS
+  PEMINJAM
+}
+
+enum LoanStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  BORROWED
+  RETURNED
+}
+

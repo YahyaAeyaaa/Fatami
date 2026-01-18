@@ -1,0 +1,326 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import {
+  CheckCircle,
+  Package,
+  Calendar,
+  User,
+  Clock,
+  AlertTriangle,
+  Loader2,
+} from 'lucide-react'
+import { useReturns } from './hooks'
+
+export default function PengembalianPage() {
+  const { returns, loading, fetchReturns } = useReturns()
+  const [selectedFilter, setSelectedFilter] = useState('Semua') // Semua, Tepat Waktu, Terlambat
+
+  useEffect(() => {
+    fetchReturns()
+  }, [fetchReturns])
+
+  const formatDateShort = (dateString) => {
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+  }
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
+  // Check if return is late
+  const isLate = (returnItem) => {
+    if (!returnItem.loan?.tanggal_deadline || !returnItem.tanggal_kembali) return false
+    const deadline = new Date(returnItem.loan.tanggal_deadline)
+    const returnDate = new Date(returnItem.tanggal_kembali)
+    // Set time to end of day for deadline comparison
+    deadline.setHours(23, 59, 59, 999)
+    return returnDate > deadline
+  }
+
+  // Transform returns data to match UI needs
+  const transformedReturns = returns.map((returnItem) => ({
+    id: returnItem.id,
+    user: returnItem.loan?.user || null,
+    equipment: returnItem.loan?.equipment || null,
+    jumlah: returnItem.loan?.jumlah || 0,
+    tanggal_pinjam: returnItem.loan?.tanggal_pinjam,
+    tanggal_deadline: returnItem.loan?.tanggal_deadline,
+    tanggal_kembali: returnItem.tanggal_kembali,
+    kondisi_alat: returnItem.kondisi_alat,
+    catatan: returnItem.catatan,
+    status: returnItem.loan?.status || 'RETURNED',
+  }))
+
+  // Filter returns
+  const filteredReturns = transformedReturns.filter((returnItem) => {
+    if (selectedFilter === 'Tepat Waktu') return !isLate(returnItem)
+    if (selectedFilter === 'Terlambat') return isLate(returnItem)
+    return true
+  })
+
+  // Stats
+  const stats = {
+    total: transformedReturns.length,
+    onTime: transformedReturns.filter((r) => !isLate(r)).length,
+    late: transformedReturns.filter((r) => isLate(r)).length,
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50/50">
+      <div className="max-w-7xl mx-auto p-6 lg:p-8 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">Monitoring Pengembalian</h1>
+            <p className="text-slate-500 mt-1">
+              Pantau pengembalian alat yang telah dikembalikan oleh peminjam
+            </p>
+          </div>
+        </div>
+
+        {/* Stats Summary */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white rounded-xl p-4 border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Package className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
+                <p className="text-sm text-slate-500">Total Pengembalian</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{stats.onTime}</p>
+                <p className="text-sm text-slate-500">Tepat Waktu</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{stats.late}</p>
+                <p className="text-sm text-slate-500">Terlambat</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter */}
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium text-slate-700">Filter:</label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedFilter('Semua')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                selectedFilter === 'Semua'
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              Semua
+            </button>
+            <button
+              onClick={() => setSelectedFilter('Tepat Waktu')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                selectedFilter === 'Tepat Waktu'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              Tepat Waktu
+            </button>
+            <button
+              onClick={() => setSelectedFilter('Terlambat')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                selectedFilter === 'Terlambat'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              Terlambat
+            </button>
+          </div>
+        </div>
+
+        {/* Loading State */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-100">
+            <Loader2 className="w-8 h-8 text-slate-400 animate-spin mb-4" />
+            <p className="text-slate-500">Memuat data...</p>
+          </div>
+        ) : filteredReturns.length > 0 ? (
+          /* Returns Grid */
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {filteredReturns.map((returnItem) => {
+              const late = isLate(returnItem)
+
+              return (
+                <div
+                  key={returnItem.id}
+                  className="bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg hover:border-slate-200 transition-all duration-300 overflow-hidden"
+                >
+                  {/* Image Header */}
+                  <div className="relative w-full h-48 bg-slate-100 overflow-hidden">
+                    {returnItem.equipment?.image ? (
+                      <img
+                        src={returnItem.equipment.image}
+                        alt={returnItem.equipment.nama}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = 'https://via.placeholder.com/400x300?text=No+Image'
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="w-16 h-16 text-slate-300" />
+                      </div>
+                    )}
+                    {/* Status Badge */}
+                    <div className="absolute top-4 right-4">
+                      <span
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border backdrop-blur-sm bg-white/90 ${
+                          late
+                            ? 'bg-red-100 text-red-700 border-red-200'
+                            : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                        }`}
+                      >
+                        {late ? 'Terlambat' : 'Tepat Waktu'}
+                      </span>
+                    </div>
+                    {/* Category Badge */}
+                    {returnItem.equipment?.kategori?.nama && (
+                      <div className="absolute top-4 left-4">
+                        <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/90 backdrop-blur-sm text-slate-700 border border-slate-200">
+                          {returnItem.equipment.kategori.nama}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-6 space-y-4">
+                    {/* Title & User */}
+                    <div>
+                      <h3 className="text-xl font-semibold text-slate-900 mb-2">
+                        {returnItem.equipment?.nama || 'N/A'}
+                      </h3>
+                      <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+                        <User className="w-4 h-4" />
+                        <span>{returnItem.user?.nama || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <Package className="w-4 h-4" />
+                        <span>Jumlah: {returnItem.jumlah} unit</span>
+                      </div>
+                    </div>
+
+                    {/* Status Info */}
+                    <div
+                      className={`rounded-xl p-4 flex items-start gap-3 ${
+                        late ? 'bg-red-50' : 'bg-emerald-50'
+                      }`}
+                    >
+                      {late ? (
+                        <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                      )}
+                      <div className="flex-1">
+                        <p className="font-medium text-slate-900 mb-1">
+                          {late ? 'Dikembalikan Terlambat' : 'Dikembalikan Tepat Waktu'}
+                        </p>
+                        <p className="text-sm text-slate-600">
+                          Dikembalikan pada {formatDateShort(returnItem.tanggal_kembali)}
+                        </p>
+                        {late && returnItem.tanggal_deadline && returnItem.tanggal_kembali && (
+                          <p className="text-xs text-red-700 mt-1">
+                            Terlambat{' '}
+                            {Math.ceil(
+                              (new Date(returnItem.tanggal_kembali) -
+                                new Date(returnItem.tanggal_deadline)) /
+                                (1000 * 60 * 60 * 24)
+                            )}{' '}
+                            hari
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Dates */}
+                    <div className="space-y-2 pt-4 border-t border-slate-100">
+                      <div className="flex items-center gap-3 text-sm">
+                        <Calendar className="w-4 h-4 text-slate-400" />
+                        <div className="flex-1">
+                          <p className="text-slate-500">Tanggal Pinjam</p>
+                          <p className="font-medium text-slate-900">
+                            {formatDateShort(returnItem.tanggal_pinjam)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm">
+                        <Clock className="w-4 h-4 text-slate-400" />
+                        <div className="flex-1">
+                          <p className="text-slate-500">Deadline</p>
+                          <p className="font-medium text-slate-900">
+                            {formatDateShort(returnItem.tanggal_deadline)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm">
+                        <CheckCircle className="w-4 h-4 text-slate-400" />
+                        <div className="flex-1">
+                          <p className="text-slate-500">Tanggal Kembali</p>
+                          <p className="font-medium text-slate-900">
+                            {formatDateShort(returnItem.tanggal_kembali)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          /* Empty State */
+          <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-100">
+            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+              <Package className="w-10 h-10 text-slate-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Tidak ada data pengembalian</h3>
+            <p className="text-slate-500 max-w-md">
+              {selectedFilter === 'Semua'
+                ? 'Belum ada alat yang dikembalikan'
+                : `Tidak ada pengembalian dengan status "${selectedFilter}"`}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
