@@ -52,11 +52,30 @@ npx prisma generate
 npx prisma migrate dev --name init
 ```
 
-4. Buat user admin pertama (optional, bisa dilakukan via UI setelah setup):
+4. Buat user admin pertama menggunakan seeder:
 ```bash
-npx prisma studio
-# Atau gunakan seeder script jika ada
+# Jalankan seeder untuk membuat user default (Admin, Petugas, Peminjam)
+npm run prisma:seed
+
+# Atau menggunakan Prisma CLI
+npx prisma db seed
+
+# Atau langsung dengan Node.js
+node prisma/seed.js
 ```
+
+**Default credentials setelah seeder:**
+- **Admin**: 
+  - Username/Email: `admin` atau `admin@gmail.com`
+  - Password: `admin123`
+- **Petugas**: 
+  - Username/Email: `petugas` atau `petugas@gmail.com`
+  - Password: `admin123`
+- **Peminjam**: 
+  - Username/Email: `peminjam` atau `peminjam@gmail.com`
+  - Password: `admin123`
+
+> **Catatan**: Seeder akan membuat user jika belum ada, atau update jika sudah ada (upsert).
 
 5. Jalankan development server:
 ```bash
