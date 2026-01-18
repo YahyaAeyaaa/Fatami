@@ -32,6 +32,10 @@ export function useReturnFilters(returns, searchQuery, statusFilter) {
       catatan: returnItem.catatan,
       status: returnItem.loan?.status || 'RETURNED',
       late: isLate(returnItem),
+      hari_telat: returnItem.hari_telat || 0,
+      denda: returnItem.denda ? Number(returnItem.denda) : 0,
+      denda_dibayar: returnItem.denda_dibayar || false,
+      tanggal_bayar_denda: returnItem.tanggal_bayar_denda,
     }))
   }, [returns])
 

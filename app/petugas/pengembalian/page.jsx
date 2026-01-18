@@ -10,10 +10,11 @@ import {
   AlertTriangle,
   Loader2,
 } from 'lucide-react'
+import Button from '@/components/button'
 import { useReturns } from './hooks'
 
 export default function PengembalianPage() {
-  const { returns, loading, fetchReturns } = useReturns()
+  const { returns, loading, fetchReturns, payDenda } = useReturns()
   const [selectedFilter, setSelectedFilter] = useState('Semua') // Semua, Tepat Waktu, Terlambat
 
   useEffect(() => {
@@ -64,6 +65,10 @@ export default function PengembalianPage() {
     kondisi_alat: returnItem.kondisi_alat,
     catatan: returnItem.catatan,
     status: returnItem.loan?.status || 'RETURNED',
+    hari_telat: returnItem.hari_telat || 0,
+    denda: returnItem.denda ? Number(returnItem.denda) : 0,
+    denda_dibayar: returnItem.denda_dibayar || false,
+    tanggal_bayar_denda: returnItem.tanggal_bayar_denda,
   }))
 
   // Filter returns
@@ -257,19 +262,69 @@ export default function PengembalianPage() {
                         <p className="text-sm text-slate-600">
                           Dikembalikan pada {formatDateShort(returnItem.tanggal_kembali)}
                         </p>
-                        {late && returnItem.tanggal_deadline && returnItem.tanggal_kembali && (
+                        {late && returnItem.hari_telat > 0 && (
                           <p className="text-xs text-red-700 mt-1">
-                            Terlambat{' '}
-                            {Math.ceil(
-                              (new Date(returnItem.tanggal_kembali) -
-                                new Date(returnItem.tanggal_deadline)) /
-                                (1000 * 60 * 60 * 24)
-                            )}{' '}
-                            hari
+                            Terlambat {returnItem.hari_telat} hari
                           </p>
                         )}
                       </div>
                     </div>
+
+                    {/* Denda Info */}
+                    {returnItem.denda > 0 && (
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="text-xs text-red-600 mb-1 font-medium">Denda Keterlambatan</p>
+                            <p className="text-xl font-bold text-red-700">
+                              Rp {returnItem.denda.toLocaleString('id-ID')}
+                            </p>
+                            {returnItem.hari_telat > 0 && (
+                              <p className="text-xs text-red-600 mt-1">
+                                {returnItem.hari_telat} hari × Rp 5.000/hari
+                              </p>
+                            )}
+                          </div>
+                          {returnItem.denda_dibayar ? (
+                            <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                              ✓ Sudah Dibayar
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
+                              Belum Dibayar
+                            </span>
+                          )}
+                        </div>
+                        {returnItem.tanggal_bayar_denda && (
+                          <p className="text-xs text-red-600">
+                            Dibayar pada: {formatDateTime(returnItem.tanggal_bayar_denda)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Pay Denda Button */}
+                    {returnItem.denda > 0 && !returnItem.denda_dibayar && (
+                      <div className="pt-2">
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          rounded="xl"
+                          onClick={async () => {
+                            try {
+                              await payDenda(returnItem.id)
+                              await fetchReturns()
+                            } catch (error) {
+                              // Error already handled by hook
+                            }
+                          }}
+                          className="w-full"
+                        >
+                          Konfirmasi Pembayaran Denda
+                        </Button>
+                      </div>
+                    )}
 
                     {/* Dates */}
                     <div className="space-y-2 pt-4 border-t border-slate-100">

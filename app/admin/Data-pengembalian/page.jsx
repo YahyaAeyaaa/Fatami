@@ -23,7 +23,7 @@ export default function DataPengembalianPage() {
   const [selectedReturn, setSelectedReturn] = useState(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
 
-  const { returns, loading, fetchReturns } = useReturns()
+  const { returns, loading, fetchReturns, payDenda } = useReturns()
   const { filteredReturns, stats } = useReturnFilters(returns, searchQuery, statusFilter)
   const { formatDateShort, formatDate, formatDateTime, getDaysLate } = useReturnUtils()
 
@@ -150,6 +150,9 @@ export default function DataPengembalianPage() {
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      Denda
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Kondisi
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
@@ -226,6 +229,26 @@ export default function DataPengembalianPage() {
                           >
                             {returnItem.late ? 'Terlambat' : 'Tepat Waktu'}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {returnItem.denda > 0 ? (
+                            <div>
+                              <div className="text-sm font-semibold text-red-600">
+                                Rp {returnItem.denda.toLocaleString('id-ID')}
+                              </div>
+                              {returnItem.denda_dibayar ? (
+                                <span className="text-xs text-emerald-600 font-medium">
+                                  ✓ Sudah dibayar
+                                </span>
+                              ) : (
+                                <span className="text-xs text-red-600 font-medium">
+                                  Belum dibayar
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-slate-500">-</div>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-slate-900">
@@ -410,6 +433,39 @@ export default function DataPengembalianPage() {
                   </div>
                 </div>
 
+                {/* Denda Info */}
+                {selectedReturn.denda > 0 && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="text-xs text-red-600 mb-1 font-medium">Denda Keterlambatan</p>
+                        <p className="text-2xl font-bold text-red-700">
+                          Rp {selectedReturn.denda.toLocaleString('id-ID')}
+                        </p>
+                        {selectedReturn.hari_telat > 0 && (
+                          <p className="text-sm text-red-600 mt-1">
+                            Terlambat {selectedReturn.hari_telat} hari × Rp 5.000/hari
+                          </p>
+                        )}
+                      </div>
+                      {selectedReturn.denda_dibayar ? (
+                        <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                          ✓ Sudah Dibayar
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
+                          Belum Dibayar
+                        </span>
+                      )}
+                    </div>
+                    {selectedReturn.tanggal_bayar_denda && (
+                      <p className="text-xs text-red-600">
+                        Dibayar pada: {formatDateTime(selectedReturn.tanggal_bayar_denda)}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Condition & Notes */}
                 <div className="space-y-4">
                   <div className="p-4 bg-slate-50 rounded-xl">
@@ -426,8 +482,36 @@ export default function DataPengembalianPage() {
                   )}
                 </div>
 
-                {/* Action Button */}
-                <div className="flex justify-end pt-4 border-t border-slate-200">
+                {/* Action Buttons */}
+                <div className="flex gap-3 justify-end pt-4 border-t border-slate-200">
+                  {selectedReturn.denda > 0 && !selectedReturn.denda_dibayar && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="md"
+                      rounded="xl"
+                      onClick={async () => {
+                        try {
+                          await payDenda(selectedReturn.id)
+                          await fetchReturns()
+                          // Update selected return
+                          const updatedReturn = returns.find((r) => r.id === selectedReturn.id)
+                          if (updatedReturn) {
+                            setSelectedReturn({
+                              ...selectedReturn,
+                              denda_dibayar: true,
+                              tanggal_bayar_denda: new Date(),
+                            })
+                          }
+                        } catch (error) {
+                          // Error already handled by hook
+                        }
+                      }}
+                      className="flex-1 sm:flex-none"
+                    >
+                      Konfirmasi Pembayaran Denda
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="outline"

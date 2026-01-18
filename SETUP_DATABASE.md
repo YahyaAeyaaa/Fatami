@@ -130,3 +130,4 @@ Untuk production, pastikan:
 3. DATABASE_URL harus menggunakan connection pooling jika memungkinkan
 4. Jangan commit file `.env` ke repository
 
+

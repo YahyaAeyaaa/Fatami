@@ -37,6 +37,7 @@ export async function GET() {
             nama: true,
           },
         },
+        return: true,
       },
       orderBy: { created_at: 'desc' },
     })

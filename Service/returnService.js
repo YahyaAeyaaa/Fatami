@@ -21,8 +21,17 @@ export async function createReturn(returnData) {
   return data
 }
 
+/**
+ * Pay denda for a return
+ */
+export async function payDenda(returnId) {
+  const { data } = await post(`/api/returns/${returnId}/pay-denda`)
+  return data
+}
+
 export default {
   getReturns,
   createReturn,
+  payDenda,
 }
 

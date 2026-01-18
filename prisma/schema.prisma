@@ -76,14 +76,18 @@ model Loan {
 }
 
 model Return {
-  id              String   @id @default(uuid())
-  loan_id         String   @unique
-  returned_by     String
-  tanggal_kembali DateTime @default(now())
-  kondisi_alat    String?
-  catatan         String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id                String    @id @default(uuid())
+  loan_id           String    @unique
+  returned_by       String
+  tanggal_kembali    DateTime  @default(now())
+  kondisi_alat      String?
+  catatan           String?
+  hari_telat        Int       @default(0)
+  denda             Decimal   @default(0) @db.Decimal(10, 2)
+  denda_dibayar     Boolean   @default(false)
+  tanggal_bayar_denda DateTime?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
   
   loan        Loan  @relation(fields: [loan_id], references: [id])
   returner    User  @relation("ReturnsMade", fields: [returned_by], references: [id])

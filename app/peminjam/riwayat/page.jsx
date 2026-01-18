@@ -264,6 +264,39 @@ export default function RiwayatPage() {
                       </div>
                     </div>
 
+                    {/* Denda Info */}
+                    {loan.status === 'RETURNED' && loan.return && loan.return.denda > 0 && (
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="text-xs text-red-600 mb-1 font-medium">Denda Keterlambatan</p>
+                            <p className="text-xl font-bold text-red-700">
+                              Rp {Number(loan.return.denda).toLocaleString('id-ID')}
+                            </p>
+                            {loan.return.hari_telat > 0 && (
+                              <p className="text-xs text-red-600 mt-1">
+                                Terlambat {loan.return.hari_telat} hari × Rp 5.000/hari
+                              </p>
+                            )}
+                          </div>
+                          {loan.return.denda_dibayar ? (
+                            <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                              ✓ Sudah Dibayar
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
+                              Belum Dibayar
+                            </span>
+                          )}
+                        </div>
+                        {loan.return.tanggal_bayar_denda && (
+                          <p className="text-xs text-red-600">
+                            Dibayar pada: {formatDateTime(loan.return.tanggal_bayar_denda)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {/* Dates */}
                     <div className="space-y-2 pt-4 border-t border-slate-100">
                       <div className="flex items-center gap-3 text-sm">

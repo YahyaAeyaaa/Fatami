@@ -73,6 +73,19 @@ export async function POST(request) {
       )
     }
 
+    // Hitung denda jika telat
+    const returnDate = new Date()
+    const deadline = new Date(loan.tanggal_deadline)
+    deadline.setHours(23, 59, 59, 999) // Set ke akhir hari deadline
+    
+    const diffTime = returnDate - deadline
+    const hariTelat = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    const isLate = hariTelat > 0
+    
+    // Hitung denda: Rp 5.000 per hari telat (bisa disesuaikan)
+    const dendaPerHari = 5000
+    const denda = isLate ? hariTelat * dendaPerHari : 0
+
     const result = await prisma.$transaction([
       prisma.return.create({
         data: {
@@ -80,6 +93,9 @@ export async function POST(request) {
           returned_by: session.user.id,
           kondisi_alat,
           catatan,
+          hari_telat: isLate ? hariTelat : 0,
+          denda: denda,
+          denda_dibayar: false,
         },
         include: {
           loan: {
@@ -97,7 +113,7 @@ export async function POST(request) {
         where: { id: loan_id },
         data: {
           status: 'RETURNED',
-          tanggal_kembali: new Date(),
+          tanggal_kembali: returnDate,
         },
       }),
       prisma.equipment.update({
@@ -112,6 +128,7 @@ export async function POST(request) {
 
     return NextResponse.json(result[0], { status: 201 })
   } catch (error) {
+    console.error('Error creating return:', error)
     return NextResponse.json(
       { error: 'Failed to create return' },
       { status: 500 }
