@@ -94,7 +94,7 @@ export async function POST(request) {
           kondisi_alat,
           catatan,
           hari_telat: isLate ? hariTelat : 0,
-          denda: denda,
+          denda: denda.toString(), // Convert to string for Decimal type
           denda_dibayar: false,
         },
         include: {
@@ -129,8 +129,21 @@ export async function POST(request) {
     return NextResponse.json(result[0], { status: 201 })
   } catch (error) {
     console.error('Error creating return:', error)
+    // Check if error is related to missing database columns
+    if (error.message && error.message.includes('Unknown column') || error.message.includes('column') && error.message.includes('does not exist')) {
+      return NextResponse.json(
+        { 
+          error: 'Database schema belum di-update. Silakan jalankan: npx prisma migrate deploy',
+          details: error.message 
+        },
+        { status: 500 }
+      )
+    }
     return NextResponse.json(
-      { error: 'Failed to create return' },
+      { 
+        error: 'Failed to create return',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     )
   }
