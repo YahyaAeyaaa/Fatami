@@ -14,6 +14,14 @@ export async function approveLoan(id) {
 }
 
 /**
+ * Mark loan as BORROWED (barang sudah diambil)
+ */
+export async function markAsBorrowed(id) {
+  const { data } = await post(`/api/loans/${id}/borrow`)
+  return data
+}
+
+/**
  * Reject loan by ID
  */
 export async function rejectLoan(id) {
@@ -23,6 +31,7 @@ export async function rejectLoan(id) {
 
 export default {
   approveLoan,
+  markAsBorrowed,
   rejectLoan,
 }
 

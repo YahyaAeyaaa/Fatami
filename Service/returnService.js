@@ -22,6 +22,14 @@ export async function createReturn(returnData) {
 }
 
 /**
+ * Approve return request (petugas)
+ */
+export async function approveReturn(returnId) {
+  const { data } = await post(`/api/returns/${returnId}/approve`)
+  return data
+}
+
+/**
  * Pay denda for a return
  */
 export async function payDenda(returnId) {
@@ -32,6 +40,7 @@ export async function payDenda(returnId) {
 export default {
   getReturns,
   createReturn,
+  approveReturn,
   payDenda,
 }
 
