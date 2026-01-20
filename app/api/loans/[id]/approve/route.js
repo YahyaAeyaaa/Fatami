@@ -35,11 +35,13 @@ export async function POST(request, { params }) {
       )
     }
 
+    // Saat approve: status hanya menjadi APPROVED (belum BORROWED),
+    // tetapi stok tetap dikurangi agar alat dianggap sudah "dibooking".
     const [updatedLoan, updatedEquipment] = await prisma.$transaction([
       prisma.loan.update({
         where: { id },
         data: {
-          status: 'BORROWED',
+          status: 'APPROVED',
           approved_by: session.user.id,
           approved_at: new Date(),
         },

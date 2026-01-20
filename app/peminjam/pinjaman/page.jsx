@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import Button from '@/components/button'
 import { useLoans, useReturns } from './hooks'
+import { generateApprovalPdf } from '@/helper/approvalPdf'
+import { generateReturnPdf } from '@/helper/returnPdf'
 
 export default function PinjamanPage() {
   const { loans, loading, fetchLoans } = useLoans()
@@ -24,13 +26,27 @@ export default function PinjamanPage() {
     fetchLoans()
   }, [fetchLoans])
 
-  // Filter hanya pinjaman yang aktif (PENDING, BORROWED) - exclude RETURNED dan REJECTED
+  // Filter hanya pinjaman yang aktif (PENDING, APPROVED, BORROWED) - exclude RETURNED dan REJECTED
   const activeLoans = loans.filter(
-    (loan) => loan.status === 'PENDING' || loan.status === 'BORROWED'
+    (loan) =>
+      loan.status === 'PENDING' ||
+      loan.status === 'APPROVED' ||
+      loan.status === 'BORROWED'
   )
 
-  const getStatusConfig = (status) => {
-    switch (status) {
+  const getStatusConfig = (loan) => {
+    // Jika sudah ada pengajuan pengembalian, tampilkan status khusus (tanpa ubah LoanStatus di DB)
+    if (loan?.status === 'BORROWED' && loan?.return?.status === 'PENDING') {
+      return {
+        label: 'Menunggu Approval Pengembalian',
+        color: 'bg-amber-100 text-amber-700 border-amber-200',
+        icon: Clock,
+        iconColor: 'text-amber-600',
+        bg: 'bg-amber-50',
+      }
+    }
+
+    switch (loan?.status) {
       case 'PENDING':
         return {
           label: 'Menunggu Approval',
@@ -38,6 +54,14 @@ export default function PinjamanPage() {
           icon: Clock,
           iconColor: 'text-amber-600',
           bg: 'bg-amber-50',
+        }
+      case 'APPROVED':
+        return {
+          label: 'Disetujui - Menunggu Pengambilan',
+          color: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+          icon: CheckCircle,
+          iconColor: 'text-emerald-600',
+          bg: 'bg-emerald-50',
         }
       case 'BORROWED':
         return {
@@ -49,7 +73,7 @@ export default function PinjamanPage() {
         }
       default:
         return {
-          label: status,
+          label: loan?.status,
           color: 'bg-gray-100 text-gray-700 border-gray-200',
           icon: Package,
           iconColor: 'text-gray-600',
@@ -92,6 +116,10 @@ export default function PinjamanPage() {
     if (loan.status !== 'BORROWED') {
       return
     }
+    // Kalau sudah pernah mengajukan pengembalian, jangan buka modal lagi
+    if (loan.return?.status === 'PENDING') {
+      return
+    }
     setSelectedLoan(loan)
     setShowConfirmModal(true)
   }
@@ -100,11 +128,14 @@ export default function PinjamanPage() {
     if (!selectedLoan) return
 
     try {
-      await createReturn({
+      const created = await createReturn({
         loan_id: selectedLoan.id,
         kondisi_alat: 'Baik', // Default, bisa dikembangkan lebih lanjut
         catatan: '',
       })
+
+      // Otomatis download PDF pengajuan pengembalian (menunggu approval petugas)
+      await generateReturnPdf(created, { type: 'REQUEST' })
 
       // Refresh loans
       await fetchLoans()
@@ -114,6 +145,14 @@ export default function PinjamanPage() {
     } catch (error) {
       // Error already handled by hook
       console.error('Error returning loan:', error)
+    }
+  }
+
+  const handleDownloadApproval = async (loan) => {
+    try {
+      await generateApprovalPdf(loan, { printedByRole: 'PEMINJAM' })
+    } catch (error) {
+      console.error('Error generating approval PDF:', error)
     }
   }
 
@@ -170,7 +209,7 @@ export default function PinjamanPage() {
           /* Loans Grid */
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {activeLoans.map((loan) => {
-              const statusConfig = getStatusConfig(loan.status)
+              const statusConfig = getStatusConfig(loan)
               const StatusIcon = statusConfig.icon
               const daysUntilDeadline = getDaysUntilDeadline(loan.tanggal_deadline)
 
@@ -236,9 +275,20 @@ export default function PinjamanPage() {
                             Pengajuan Anda sedang ditinjau oleh petugas
                           </p>
                         )}
+                        {loan.status === 'APPROVED' && (
+                          <p className="text-sm text-slate-600">
+                            Pengajuan Anda telah disetujui. Silakan datang ke ruang petugas
+                            membawa bukti approval untuk mengambil alat.
+                          </p>
+                        )}
                         {loan.status === 'BORROWED' && loan.approved_at && (
                           <p className="text-sm text-slate-600">
                             Disetujui pada {formatDateShort(loan.approved_at)}
+                          </p>
+                        )}
+                        {loan.status === 'BORROWED' && loan.return?.status === 'PENDING' && (
+                          <p className="text-sm text-slate-600">
+                            Pengajuan pengembalian sudah dikirim dan sedang menunggu approval petugas
                           </p>
                         )}
                       </div>
@@ -277,7 +327,7 @@ export default function PinjamanPage() {
                     </div>
 
                     {/* Action Button */}
-                    {loan.status === 'BORROWED' && (
+                    {loan.status === 'BORROWED' && loan.return?.status !== 'PENDING' && (
                       <div className="pt-4 border-t border-slate-100">
                         <button
                           onClick={() => handleKembalikan(loan)}
@@ -285,6 +335,20 @@ export default function PinjamanPage() {
                           className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <span>Kembalikan Alat</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Download Bukti Approval */}
+                    {loan.status === 'APPROVED' && (
+                      <div className="pt-4 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadApproval(loan)}
+                          className="w-full flex items-center justify-center gap-2 border border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold py-3 px-4 rounded-xl transition-colors"
+                        >
+                          <span>Download Bukti Approval (PDF)</span>
                           <ArrowRight className="w-4 h-4" />
                         </button>
                       </div>
@@ -353,8 +417,8 @@ export default function PinjamanPage() {
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-blue-800">
-                    <p className="font-medium mb-1">Alat akan langsung dikembalikan</p>
-                    <p>Stok alat akan otomatis bertambah setelah pengembalian.</p>
+                    <p className="font-medium mb-1">Pengajuan pengembalian akan menunggu approval</p>
+                    <p>Stok alat akan bertambah setelah petugas menyetujui pengembalian.</p>
                   </div>
                 </div>
 

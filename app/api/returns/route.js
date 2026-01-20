@@ -18,6 +18,14 @@ export async function GET() {
     const returns = await prisma.return.findMany({
       where,
       include: {
+        approver: {
+          select: {
+            id: true,
+            username: true,
+            nama: true,
+            email: true,
+          },
+        },
         loan: {
           include: {
             equipment: {
@@ -30,6 +38,7 @@ export async function GET() {
                 id: true,
                 username: true,
                 nama: true,
+                email: true,
               },
             },
           },
@@ -59,7 +68,27 @@ export async function POST(request) {
 
     const loan = await prisma.loan.findUnique({
       where: { id: loan_id },
-      include: { equipment: true },
+      include: {
+        equipment: {
+          include: { kategori: true },
+        },
+        user: {
+          select: {
+            id: true,
+            username: true,
+            nama: true,
+            email: true,
+          },
+        },
+        approver: {
+          select: {
+            id: true,
+            username: true,
+            nama: true,
+            email: true,
+          },
+        },
+      },
     })
 
     if (!loan) {
@@ -73,64 +102,56 @@ export async function POST(request) {
       )
     }
 
-    // Hitung denda jika telat
-    const returnDate = new Date()
-    const deadline = new Date(loan.tanggal_deadline)
-    deadline.setHours(23, 59, 59, 999) // Set ke akhir hari deadline
-    
-    const diffTime = returnDate - deadline
-    const hariTelat = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    const isLate = hariTelat > 0
-    
-    // Hitung denda: Rp 5.000 per hari telat (bisa disesuaikan)
-    const dendaPerHari = 5000
-    const denda = isLate ? hariTelat * dendaPerHari : 0
-
-    const result = await prisma.$transaction([
-      prisma.return.create({
-        data: {
-          loan_id,
-          returned_by: session.user.id,
-          kondisi_alat,
-          catatan,
-          hari_telat: isLate ? hariTelat : 0,
-          denda: denda,
-          denda_dibayar: false,
-        },
-        include: {
-          loan: {
-            include: {
-              equipment: {
-                include: {
-                  kategori: true,
-                },
-              },
-            },
+    // Buat pengajuan pengembalian (menunggu approval petugas)
+    // Catatan: denda dihitung saat petugas approve (karena tanggal_kembali final baru diketahui saat itu).
+    const createdReturn = await prisma.return.create({
+      data: {
+        loan_id,
+        returned_by: session.user.id,
+        status: 'PENDING',
+        kondisi_alat,
+        catatan,
+        hari_telat: 0,
+        denda: '0',
+        denda_dibayar: false,
+      },
+      include: {
+        approver: {
+          select: {
+            id: true,
+            username: true,
+            nama: true,
+            email: true,
           },
         },
-      }),
-      prisma.loan.update({
-        where: { id: loan_id },
-        data: {
-          status: 'RETURNED',
-          tanggal_kembali: returnDate,
-        },
-      }),
-      prisma.equipment.update({
-        where: { id: loan.equipment_id },
-        data: {
-          stok: {
-            increment: loan.jumlah,
+        loan: {
+          include: {
+            equipment: { include: { kategori: true } },
+            user: { select: { id: true, username: true, nama: true, email: true } },
+            approver: { select: { id: true, username: true, nama: true, email: true } },
           },
         },
-      }),
-    ])
+      },
+    })
 
-    return NextResponse.json(result[0], { status: 201 })
+    return NextResponse.json(createdReturn, { status: 201 })
   } catch (error) {
     console.error('Error creating return:', error)
+    // Check if error is related to missing database columns
+    if (error.message && error.message.includes('Unknown column') || error.message.includes('column') && error.message.includes('does not exist')) {
+      return NextResponse.json(
+        { 
+          error: 'Database schema belum di-update. Silakan jalankan: npx prisma migrate deploy',
+          details: error.message 
+        },
+        { status: 500 }
+      )
+    }
     return NextResponse.json(
-      { error: 'Failed to create return' },
+      { 
+        error: 'Failed to create return',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     )
   }

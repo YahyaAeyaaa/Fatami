@@ -15,9 +15,10 @@ import {
 import Button from '@/components/button'
 import { ModalDelete } from '@/components/modaldelet'
 import { useLoans } from './hooks'
+import { generateApprovalPdf } from '@/helper/approvalPdf'
 
 export default function ApprovalPage() {
-  const { loans, loading, fetchLoans, approveLoan, rejectLoan } = useLoans()
+  const { loans, loading, fetchLoans, approveLoan, markAsBorrowed, rejectLoan } = useLoans()
   const [selectedLoan, setSelectedLoan] = useState(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
@@ -30,6 +31,8 @@ export default function ApprovalPage() {
 
   // Filter hanya pinjaman dengan status PENDING
   const pendingLoans = loans.filter((loan) => loan.status === 'PENDING')
+  // Pinjaman yang sudah disetujui tapi belum diambil
+  const approvedLoans = loans.filter((loan) => loan.status === 'APPROVED')
 
   const handleCardClick = (loan) => {
     setSelectedLoan(loan)
@@ -88,6 +91,27 @@ export default function ApprovalPage() {
 
   const isStockAvailable = (loan) => {
     return loan.equipment?.stok >= loan.jumlah
+  }
+
+  const handleMarkAsBorrowed = async (loan) => {
+    try {
+      const updatedLoan = await markAsBorrowed(loan.id)
+      // Setelah dikonfirmasi barang dibawa, otomatis cetak bukti peminjaman
+      await generateApprovalPdf(updatedLoan || loan, {
+        printedByRole: 'PETUGAS',
+        type: 'BORROWED_RECEIPT',
+      })
+    } catch (error) {
+      console.error('Error marking loan as borrowed:', error)
+    }
+  }
+
+  const handleDownloadApproval = async (loan) => {
+    try {
+      await generateApprovalPdf(loan, { printedByRole: 'PETUGAS' })
+    } catch (error) {
+      console.error('Error generating approval PDF:', error)
+    }
   }
 
   return (
@@ -201,6 +225,105 @@ export default function ApprovalPage() {
             </div>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Tidak ada pengajuan pending</h3>
             <p className="text-slate-500 max-w-md">Semua pengajuan peminjaman sudah ditinjau</p>
+          </div>
+        )}
+
+        {/* Approved but not yet borrowed section */}
+        {approvedLoans.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mt-8">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Menunggu Pengambilan (Sudah Disetujui)
+                </h2>
+                <p className="text-slate-500 text-sm">
+                  Daftar peminjaman yang sudah disetujui dan menunggu peminjam datang mengambil alat.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {approvedLoans.map((loan) => (
+                <div
+                  key={loan.id}
+                  className="bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg hover:border-slate-200 transition-all duration-300 overflow-hidden"
+                >
+                  <div className="relative w-full h-40 bg-slate-100 overflow-hidden">
+                    {loan.equipment?.image ? (
+                      <img
+                        src={loan.equipment.image}
+                        alt={loan.equipment.nama}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = 'https://via.placeholder.com/400x300?text=No+Image'
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="w-16 h-16 text-slate-300" />
+                      </div>
+                    )}
+                    <div className="absolute top-4 right-4">
+                      <span className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 backdrop-blur-sm">
+                        Disetujui
+                      </span>
+                    </div>
+                    {loan.equipment?.kategori && (
+                      <div className="absolute top-4 left-4">
+                        <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/90 backdrop-blur-sm text-slate-700 border border-slate-200">
+                          {loan.equipment.kategori.nama}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <h3 className="text-xl font-semibold text-slate-900 mb-1">
+                        {loan.equipment?.nama || 'N/A'}
+                      </h3>
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <User className="w-4 h-4" />
+                        <span>{loan.user?.nama || 'N/A'}</span>
+                      </div>
+                      <p className="text-sm text-slate-500 mt-1">
+                        Jumlah: {loan.jumlah} unit
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 pt-3 border-t border-slate-100">
+                      <p className="text-sm text-slate-600">
+                        Peminjam dapat datang membawa bukti approval untuk mengambil alat.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-slate-100">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="md"
+                        rounded="xl"
+                        className="flex-1"
+                        onClick={() => handleDownloadApproval(loan)}
+                      >
+                        Cetak Bukti Approval
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="md"
+                        rounded="xl"
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
+                        onClick={() => handleMarkAsBorrowed(loan)}
+                        disabled={isApproving || isRejecting}
+                      >
+                        Tandai Barang Sudah Dipinjam
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

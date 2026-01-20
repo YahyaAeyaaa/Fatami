@@ -21,6 +21,7 @@ model User {
   loans        Loan[]
   approved_loans Loan[] @relation("ApprovedLoans")
   returns_made Return[] @relation("ReturnsMade")
+  approved_returns Return[] @relation("ApprovedReturns")
   
   @@map("users")
 }
@@ -79,9 +80,12 @@ model Return {
   id                String    @id @default(uuid())
   loan_id           String    @unique
   returned_by       String
-  tanggal_kembali    DateTime  @default(now())
+  status            ReturnStatus @default(PENDING)
+  tanggal_kembali    DateTime?
   kondisi_alat      String?
   catatan           String?
+  approved_by       String?
+  approved_at       DateTime?
   hari_telat        Int       @default(0)
   denda             Decimal   @default(0) @db.Decimal(10, 2)
   denda_dibayar     Boolean   @default(false)
@@ -91,6 +95,7 @@ model Return {
   
   loan        Loan  @relation(fields: [loan_id], references: [id])
   returner    User  @relation("ReturnsMade", fields: [returned_by], references: [id])
+  approver    User? @relation("ApprovedReturns", fields: [approved_by], references: [id])
   
   @@map("returns")
 }
@@ -107,5 +112,11 @@ enum LoanStatus {
   REJECTED
   BORROWED
   RETURNED
+}
+
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 

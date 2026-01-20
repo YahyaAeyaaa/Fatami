@@ -44,8 +44,10 @@ export function useLoans() {
         setError(null)
         const updatedLoan = await loanApprovalService.approveLoan(loanId)
 
-        // Update local state - remove from pending list
-        setLoans((prev) => prev.filter((loan) => loan.id !== loanId))
+        // Update local state - ubah status loan menjadi APPROVED
+        setLoans((prev) =>
+          prev.map((loan) => (loan.id === loanId ? updatedLoan : loan))
+        )
 
         toast.success('Berhasil!', 'Peminjaman berhasil disetujui')
         return updatedLoan
@@ -54,6 +56,32 @@ export function useLoans() {
         setError(errorMessage)
         toast.error('Error', errorMessage)
         console.error('Error approving loan:', err)
+        throw err
+      }
+    },
+    [toast]
+  )
+
+  /**
+   * Mark loan as BORROWED (barang sudah diambil)
+   */
+  const markAsBorrowed = useCallback(
+    async (loanId) => {
+      try {
+        setError(null)
+        const updatedLoan = await loanApprovalService.markAsBorrowed(loanId)
+
+        setLoans((prev) =>
+          prev.map((loan) => (loan.id === loanId ? updatedLoan : loan))
+        )
+
+        toast.success('Berhasil!', 'Status diubah menjadi Sedang Dipinjam')
+        return updatedLoan
+      } catch (err) {
+        const errorMessage = err.message || 'Failed to mark loan as borrowed'
+        setError(errorMessage)
+        toast.error('Error', errorMessage)
+        console.error('Error marking loan as borrowed:', err)
         throw err
       }
     },
@@ -91,6 +119,7 @@ export function useLoans() {
     error,
     fetchLoans,
     approveLoan,
+    markAsBorrowed,
     rejectLoan,
   }
 }

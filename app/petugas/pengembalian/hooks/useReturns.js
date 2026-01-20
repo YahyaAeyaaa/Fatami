@@ -59,11 +59,36 @@ export function useReturns() {
     }
   }, [toast])
 
+  /**
+   * Approve return request (petugas)
+   */
+  const approveReturn = useCallback(async (returnId) => {
+    try {
+      setLoading(true)
+      const updatedReturn = await returnService.approveReturn(returnId)
+
+      setReturns((prevReturns) =>
+        prevReturns.map((r) => (r.id === returnId ? updatedReturn : r))
+      )
+
+      toast.success('Berhasil', 'Pengembalian berhasil di-approve')
+      return updatedReturn
+    } catch (err) {
+      const errorMessage = err.message || 'Failed to approve return'
+      console.error('Error approving return:', err)
+      toast.error('Error', errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
   return {
     returns,
     loading,
     error,
     fetchReturns,
+    approveReturn,
     payDenda,
   }
 }

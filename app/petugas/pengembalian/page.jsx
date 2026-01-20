@@ -12,9 +12,10 @@ import {
 } from 'lucide-react'
 import Button from '@/components/button'
 import { useReturns } from './hooks'
+import { generateReturnPdf } from '@/helper/returnPdf'
 
 export default function PengembalianPage() {
-  const { returns, loading, fetchReturns, payDenda } = useReturns()
+  const { returns, loading, fetchReturns, approveReturn, payDenda } = useReturns()
   const [selectedFilter, setSelectedFilter] = useState('Semua') // Semua, Tepat Waktu, Terlambat
 
   useEffect(() => {
@@ -65,10 +66,13 @@ export default function PengembalianPage() {
     kondisi_alat: returnItem.kondisi_alat,
     catatan: returnItem.catatan,
     status: returnItem.loan?.status || 'RETURNED',
+    return_status: returnItem.status || 'APPROVED',
+    approver: returnItem.approver || null,
     hari_telat: returnItem.hari_telat || 0,
     denda: returnItem.denda ? Number(returnItem.denda) : 0,
     denda_dibayar: returnItem.denda_dibayar || false,
     tanggal_bayar_denda: returnItem.tanggal_bayar_denda,
+    raw: returnItem,
   }))
 
   // Filter returns
@@ -77,6 +81,18 @@ export default function PengembalianPage() {
     if (selectedFilter === 'Terlambat') return isLate(returnItem)
     return true
   })
+
+  const pendingReturns = transformedReturns.filter((r) => r.return_status === 'PENDING')
+
+  const handleApproveReturn = async (item) => {
+    try {
+      const updated = await approveReturn(item.id)
+      await generateReturnPdf(updated, { type: 'APPROVAL' })
+      await fetchReturns()
+    } catch (e) {
+      console.error('Error approving return:', e)
+    }
+  }
 
   // Stats
   const stats = {
@@ -134,6 +150,82 @@ export default function PengembalianPage() {
             </div>
           </div>
         </div>
+
+        {/* Pending Approval Section */}
+        {pendingReturns.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Menunggu Approval Pengembalian</h2>
+              <p className="text-sm text-slate-500">
+                Peminjam sudah mengajukan pengembalian. Approve untuk mengembalikan status loan dan menambah stok.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {pendingReturns.map((r) => (
+                <div key={r.id} className="border border-slate-200 rounded-xl p-4 flex gap-4">
+                  <div className="w-20 h-20 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
+                    {r.equipment?.image ? (
+                      <img
+                        src={r.equipment.image}
+                        alt={r.equipment.nama}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = 'https://via.placeholder.com/200x200?text=No+Image'
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="w-8 h-8 text-slate-400" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-900">{r.equipment?.nama || '-'}</p>
+                        <p className="text-sm text-slate-600 flex items-center gap-2 mt-1">
+                          <User className="w-4 h-4 text-slate-400" />
+                          <span>{r.user?.nama || '-'}</span>
+                        </p>
+                        <p className="text-sm text-slate-500 mt-1">Jumlah: {r.jumlah} unit</p>
+                      </div>
+                      <span className="px-2 py-1 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+                        Pending
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-slate-600">
+                      <div>
+                        <p className="text-slate-500">Dipinjam</p>
+                        <p className="font-medium">{formatDateShort(r.tanggal_pinjam)}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Deadline</p>
+                        <p className="font-medium">{formatDateShort(r.tanggal_deadline)}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="md"
+                        rounded="xl"
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500"
+                        onClick={() => handleApproveReturn(r)}
+                        disabled={loading}
+                      >
+                        Approve Pengembalian (Cetak Bukti)
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Filter */}
         <div className="flex items-center gap-3">

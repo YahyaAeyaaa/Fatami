@@ -84,6 +84,45 @@ npm run dev
 
 6. Buka browser ke `http://localhost:3000`
 
+## Update Setelah Git Pull
+
+Jika Anda melakukan `git pull` untuk mendapatkan update terbaru dari repository, **WAJIB** menjalankan langkah-langkah berikut:
+
+```bash
+# 1. Install dependencies baru (jika ada package baru)
+npm install
+
+# 2. Generate Prisma Client (update kode TypeScript/JavaScript)
+npx prisma generate
+
+# 3. Update database schema (TERPENTING! Jangan skip ini!)
+# Untuk development:
+npx prisma migrate dev
+
+# Atau untuk production:
+npx prisma migrate deploy
+
+# 4. Restart development server
+# Stop server (Ctrl+C) lalu jalankan lagi:
+npm run dev
+```
+
+> **⚠️ PENTING**: Jika Anda skip langkah `npx prisma migrate dev/deploy`, aplikasi akan error karena database schema belum di-update dengan field-field baru. Error yang muncul biasanya: `500 Internal Server Error` atau `Unknown column` / `column does not exist`.
+
+### Troubleshooting Setelah Git Pull
+
+**Error: "Failed to create return" atau "500 Internal Server Error"**
+- **Penyebab**: Database schema belum di-update setelah git pull
+- **Solusi**: Jalankan `npx prisma migrate dev` atau `npx prisma migrate deploy`
+
+**Error: "Prisma Client belum di-generate"**
+- **Penyebab**: Prisma Client belum di-update setelah schema berubah
+- **Solusi**: Jalankan `npx prisma generate`
+
+**Error: "Module not found" atau "Cannot find module"**
+- **Penyebab**: Dependencies belum di-install
+- **Solusi**: Jalankan `npm install`
+
 ## Catatan
 
 - Pastikan PostgreSQL sudah running

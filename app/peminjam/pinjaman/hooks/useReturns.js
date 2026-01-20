@@ -22,7 +22,7 @@ export function useReturns() {
         setError(null)
         const newReturn = await returnService.createReturn(returnData)
 
-        toast.success('Berhasil!', 'Barang berhasil dikembalikan')
+        toast.success('Berhasil!', 'Pengajuan pengembalian berhasil dikirim (menunggu approval)')
         return newReturn
       } catch (err) {
         const errorMessage = err.message || 'Failed to create return'
