@@ -47,11 +47,19 @@ export default function PengembalianPage() {
   // Check if return is late
   const isLate = (returnItem) => {
     if (!returnItem.loan?.tanggal_deadline || !returnItem.tanggal_kembali) return false
-    const deadline = new Date(returnItem.loan.tanggal_deadline)
-    const returnDate = new Date(returnItem.tanggal_kembali)
-    // Set time to end of day for deadline comparison
-    deadline.setHours(23, 59, 59, 999)
-    return returnDate > deadline
+    const deadlineRaw = new Date(returnItem.loan.tanggal_deadline)
+    const returnRaw = new Date(returnItem.tanggal_kembali)
+    const deadlineDate = new Date(
+      deadlineRaw.getFullYear(),
+      deadlineRaw.getMonth(),
+      deadlineRaw.getDate()
+    )
+    const returnDate = new Date(
+      returnRaw.getFullYear(),
+      returnRaw.getMonth(),
+      returnRaw.getDate()
+    )
+    return returnDate > deadlineDate
   }
 
   // Transform returns data to match UI needs

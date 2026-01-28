@@ -105,10 +105,22 @@ export default function PinjamanPage() {
 
   const getDaysUntilDeadline = (deadlineString) => {
     if (!deadlineString) return 0
-    const deadline = new Date(deadlineString)
-    const today = new Date()
+    const deadlineRaw = new Date(deadlineString)
+    const todayRaw = new Date()
+
+    const deadline = new Date(
+      deadlineRaw.getFullYear(),
+      deadlineRaw.getMonth(),
+      deadlineRaw.getDate()
+    )
+    const today = new Date(
+      todayRaw.getFullYear(),
+      todayRaw.getMonth(),
+      todayRaw.getDate()
+    )
+
     const diffTime = deadline - today
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
     return diffDays
   }
 
@@ -316,7 +328,7 @@ export default function PinjamanPage() {
                                 {daysUntilDeadline} hari lagi
                               </span>
                             )}
-                            {daysUntilDeadline <= 0 && (
+                            {daysUntilDeadline < 0 && (
                               <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
                                 Melewati deadline
                               </span>
