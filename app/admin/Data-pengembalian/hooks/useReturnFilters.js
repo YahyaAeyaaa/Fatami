@@ -5,16 +5,19 @@
 
 import { useMemo, useCallback } from 'react'
 
+const toLocalDateOnly = (dateLike) => {
+  const d = new Date(dateLike)
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
 /**
  * Check if return is late
  */
 const isLate = (returnItem) => {
   if (!returnItem.loan?.tanggal_deadline || !returnItem.tanggal_kembali) return false
-  const deadline = new Date(returnItem.loan.tanggal_deadline)
-  const returnDate = new Date(returnItem.tanggal_kembali)
-  // Set time to end of day for deadline comparison
-  deadline.setHours(23, 59, 59, 999)
-  return returnDate > deadline
+  const deadlineDate = toLocalDateOnly(returnItem.loan.tanggal_deadline)
+  const returnDate = toLocalDateOnly(returnItem.tanggal_kembali)
+  return returnDate > deadlineDate
 }
 
 export function useReturnFilters(returns, searchQuery, statusFilter) {

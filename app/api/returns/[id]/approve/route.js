@@ -3,6 +3,19 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/authOptions'
 import { prisma } from '@/lib/prisma'
 
+function toLocalDateOnly(dateLike) {
+  const d = new Date(dateLike)
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+function calcLateDays(returnDateLike, deadlineDateLike) {
+  if (!returnDateLike || !deadlineDateLike) return 0
+  const returnDate = toLocalDateOnly(returnDateLike)
+  const deadlineDate = toLocalDateOnly(deadlineDateLike)
+  const diffDays = Math.floor((returnDate - deadlineDate) / (1000 * 60 * 60 * 24))
+  return diffDays > 0 ? diffDays : 0
+}
+
 // Petugas meng-approve pengembalian (barang benar-benar kembali + stok bertambah)
 export async function POST(request, { params }) {
   try {
@@ -55,11 +68,7 @@ export async function POST(request, { params }) {
       const tanggalKembali =
         returnRequest.loan.tanggal_kembali || returnRequest.tanggal_kembali || approvedAt
 
-      const deadline = new Date(returnRequest.loan.tanggal_deadline)
-      deadline.setHours(23, 59, 59, 999)
-
-      const diffTime = tanggalKembali - deadline
-      const hariTelat = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      const hariTelat = calcLateDays(tanggalKembali, returnRequest.loan.tanggal_deadline)
       const isLate = hariTelat > 0
       const dendaPerHari = 5000
       const denda = isLate ? hariTelat * dendaPerHari : 0
@@ -102,11 +111,7 @@ export async function POST(request, { params }) {
     }
 
     const returnDate = new Date()
-    const deadline = new Date(returnRequest.loan.tanggal_deadline)
-    deadline.setHours(23, 59, 59, 999)
-
-    const diffTime = returnDate - deadline
-    const hariTelat = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    const hariTelat = calcLateDays(returnDate, returnRequest.loan.tanggal_deadline)
     const isLate = hariTelat > 0
 
     const dendaPerHari = 5000

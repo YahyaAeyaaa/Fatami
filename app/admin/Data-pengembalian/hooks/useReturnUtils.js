@@ -5,6 +5,11 @@
 
 import { useCallback } from 'react'
 
+const toLocalDateOnly = (dateLike) => {
+  const d = new Date(dateLike)
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
 export function useReturnUtils() {
   /**
    * Format date to short format
@@ -53,11 +58,12 @@ export function useReturnUtils() {
    */
   const getDaysLate = useCallback((returnItem) => {
     if (!returnItem.loan?.tanggal_deadline || !returnItem.tanggal_kembali) return 0
-    const deadline = new Date(returnItem.loan.tanggal_deadline)
-    const returnDate = new Date(returnItem.tanggal_kembali)
-    deadline.setHours(23, 59, 59, 999)
-    const diffTime = returnDate - deadline
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    const deadlineDate = toLocalDateOnly(returnItem.loan.tanggal_deadline)
+    const returnDate = toLocalDateOnly(returnItem.tanggal_kembali)
+    const diffDays = Math.floor(
+      (returnDate - deadlineDate) / (1000 * 60 * 60 * 24)
+    )
     return diffDays > 0 ? diffDays : 0
   }, [])
 
